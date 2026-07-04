@@ -139,7 +139,7 @@ jobs:
           xcrun simctl list devices booted
           xcrun simctl install booted "${APP_PATH}"
 
-          xcrun simctl screenshot booted simulator-screenshots/01-before-launch.png
+          xcrun simctl io booted screenshot simulator-screenshots/01-before-launch.png
 
           set +e
           xcrun simctl launch booted "${APP_BUNDLE_IDENTIFIER}" > simulator-launch.log 2>&1
@@ -150,12 +150,12 @@ jobs:
 
           if [ "${LAUNCH_STATUS}" -ne 0 ]; then
             echo "simctl launch failed with status ${LAUNCH_STATUS}"
-            xcrun simctl screenshot booted simulator-screenshots/02-launch-failed.png
+            xcrun simctl io booted screenshot simulator-screenshots/02-launch-failed.png
             exit "${LAUNCH_STATUS}"
           fi
 
           sleep 8
-          xcrun simctl screenshot booted simulator-screenshots/02-after-launch.png
+          xcrun simctl io booted screenshot simulator-screenshots/02-after-launch.png
 
       - name: Upload xcodebuild log
         if: always()
