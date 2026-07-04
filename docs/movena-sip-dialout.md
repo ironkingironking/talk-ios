@@ -161,9 +161,10 @@ Debian workstation without a physical iPhone:
 .github/workflows/movena-ios-smoke.yml
 ```
 
-It runs on a macOS runner, installs CocoaPods dependencies, and builds the
-`NextcloudTalk` scheme for an iOS Simulator destination. It does not require a
-physical iPhone and does not perform App Store signing.
+It runs on a macOS runner, installs CocoaPods dependencies, builds the
+`NextcloudTalk` scheme for an iOS Simulator destination, installs the app in the
+simulator, launches it, and uploads screenshots. It does not require a physical
+iPhone and does not perform App Store signing.
 
 The workflow runs automatically on pushes to `codex/**` branches and on pull
 requests that touch the app or workflow files.
@@ -186,6 +187,15 @@ RUN_ID=$(gh run list \
 gh run watch "$RUN_ID" \
     --repo ironkingironking/talk-ios \
     --exit-status
+```
+
+Download the screenshot artifacts from Debian with:
+
+```sh
+gh run download "$RUN_ID" \
+    --repo ironkingironking/talk-ios \
+    --name movena-ios-smoke-screenshots \
+    --dir /tmp/movena-ios-smoke-screenshots
 ```
 
 If the workflow has been merged to the fork's default branch, it can also be

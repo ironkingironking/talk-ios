@@ -43,6 +43,8 @@ env:
   WORKSPACE: NextcloudTalk.xcworkspace
   SCHEME: NextcloudTalk
   DESTINATION: platform=iOS Simulator,name=iPhone 17,OS=26.5
+  SIMULATOR_MODEL: iPhone 17
+  APP_BUNDLE_IDENTIFIER: com.nextcloud.Talk
   XCODE_VERSION: "26.5"
   DERIVED_DATA_PATH: DerivedData
 
@@ -97,12 +99,81 @@ jobs:
             -derivedDataPath "${DERIVED_DATA_PATH}" \
             2>&1 | tee xcodebuild.log
 
+      - name: Launch app in simulator and capture screenshots
+        run: |
+          set -euo pipefail
+
+          mkdir -p simulator-screenshots
+
+          APP_PATH=$(find "${DERIVED_DATA_PATH}/Build/Products" \
+            -path "*Debug-iphonesimulator*.app" \
+            -type d \
+            -name "NextcloudTalk.app" \
+            -print \
+            -quit)
+
+          if [ -z "${APP_PATH}" ]; then
+            APP_PATH=$(find "${DERIVED_DATA_PATH}/Build/Products" \
+              -path "*iphonesimulator*.app" \
+              -type d \
+              -not -path "*/PlugIns/*" \
+              -print \
+              -quit)
+          fi
+
+          if [ -z "${APP_PATH}" ]; then
+            echo "No simulator app bundle found under ${DERIVED_DATA_PATH}/Build/Products"
+            find "${DERIVED_DATA_PATH}/Build/Products" -maxdepth 4 -type d -name "*.app" -print
+            exit 1
+          fi
+
+          echo "Installing app bundle: ${APP_PATH}"
+          xcrun simctl boot "${SIMULATOR_MODEL}" || true
+          xcrun simctl bootstatus booted -b
+          xcrun simctl install booted "${APP_PATH}"
+
+          xcrun simctl screenshot booted simulator-screenshots/01-before-launch.png
+
+          set +e
+          xcrun simctl launch booted "${APP_BUNDLE_IDENTIFIER}" > simulator-launch.log 2>&1
+          LAUNCH_STATUS=$?
+          set -e
+
+          cat simulator-launch.log
+
+          if [ "${LAUNCH_STATUS}" -ne 0 ]; then
+            echo "simctl launch failed with status ${LAUNCH_STATUS}"
+            xcrun simctl screenshot booted simulator-screenshots/02-launch-failed.png
+            exit "${LAUNCH_STATUS}"
+          fi
+
+          sleep 8
+          xcrun simctl screenshot booted simulator-screenshots/02-after-launch.png
+
       - name: Upload xcodebuild log
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: movena-ios-smoke-xcodebuild-log
           path: xcodebuild.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload simulator screenshots
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: movena-ios-smoke-screenshots
+          path: simulator-screenshots
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload simulator launch log
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: movena-ios-smoke-launch-log
+          path: simulator-launch.log
           if-no-files-found: ignore
           retention-days: 7
 
