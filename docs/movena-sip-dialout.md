@@ -152,6 +152,51 @@ xcodebuild test -workspace NextcloudTalk.xcworkspace \
     -destination "platform=iOS Simulator,name=iPhone 16,OS=18.5"
 ```
 
+## GitHub Actions smoke build
+
+This fork includes a lightweight GitHub Actions workflow for testing from a
+Debian workstation without a physical iPhone:
+
+```text
+.github/workflows/movena-ios-smoke.yml
+```
+
+It runs on a macOS runner, installs CocoaPods dependencies, and builds the
+`NextcloudTalk` scheme for an iOS Simulator destination. It does not require a
+physical iPhone and does not perform App Store signing.
+
+The workflow runs automatically on pushes to `codex/**` branches and on pull
+requests that touch the app or workflow files.
+
+From Debian, watch the latest run with:
+
+```sh
+gh run list \
+    --repo ironkingironking/talk-ios \
+    --branch codex/movena-ios-sip-dialout \
+    --workflow "Movena iOS smoke build"
+
+RUN_ID=$(gh run list \
+    --repo ironkingironking/talk-ios \
+    --branch codex/movena-ios-sip-dialout \
+    --workflow "Movena iOS smoke build" \
+    --json databaseId \
+    --jq '.[0].databaseId')
+
+gh run watch "$RUN_ID" \
+    --repo ironkingironking/talk-ios \
+    --exit-status
+```
+
+If the workflow has been merged to the fork's default branch, it can also be
+started manually:
+
+```sh
+gh workflow run movena-ios-smoke.yml \
+    --repo ironkingironking/talk-ios \
+    --ref codex/movena-ios-sip-dialout
+```
+
 ## Notes
 
 This adaptation intentionally keeps the app on the existing Nextcloud Talk and

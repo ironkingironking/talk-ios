@@ -1,0 +1,115 @@
+# SPDX-FileCopyrightText: 2026 ironkingironking
+# SPDX-License-Identifier: MIT
+
+name: Movena iOS smoke build
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - codex/**
+    paths:
+      - '.github/workflows/movena-ios-smoke.yml'
+      - 'Podfile'
+      - 'Podfile.lock'
+      - 'NextcloudTalk.xcodeproj/**'
+      - 'NextcloudTalk/**'
+      - 'NextcloudTalkTests/**'
+      - 'NotificationServiceExtension/**'
+      - 'ShareExtension/**'
+      - 'BroadcastUploadExtension/**'
+      - 'TalkIntents/**'
+  pull_request:
+    paths:
+      - '.github/workflows/movena-ios-smoke.yml'
+      - 'Podfile'
+      - 'Podfile.lock'
+      - 'NextcloudTalk.xcodeproj/**'
+      - 'NextcloudTalk/**'
+      - 'NextcloudTalkTests/**'
+      - 'NotificationServiceExtension/**'
+      - 'ShareExtension/**'
+      - 'BroadcastUploadExtension/**'
+      - 'TalkIntents/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  WORKSPACE: NextcloudTalk.xcworkspace
+  SCHEME: NextcloudTalk
+  DESTINATION: platform=iOS Simulator,name=iPhone 17,OS=26.5
+  XCODE_VERSION: "26.5"
+  DERIVED_DATA_PATH: DerivedData
+
+jobs:
+  smoke-build:
+    name: Build for iOS Simulator
+    runs-on: macos-26
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout app
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+          submodules: true
+
+      - name: Setup Xcode ${{ env.XCODE_VERSION }}
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
+        with:
+          xcode-version: ${{ env.XCODE_VERSION }}
+
+      - name: Print runner diagnostics
+        run: |
+          sw_vers
+          xcodebuild -version
+          xcrun simctl list runtimes available
+          xcrun simctl list devices available
+
+      - name: Cache CocoaPods
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: Pods
+          key: ${{ runner.os }}-movena-pods-${{ hashFiles('Podfile', 'Podfile.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-movena-pods-
+
+      - name: Setup CocoaPods
+        uses: maxim-lobanov/setup-cocoapods@8e97e1e98e6ccf42564fdf5622c8feec74199377 # v1.4.0
+        with:
+          version: latest
+
+      - name: Install dependencies
+        run: pod install
+
+      - name: Build for testing
+        run: |
+          set -o pipefail
+          xcodebuild build-for-testing \
+            -workspace "${WORKSPACE}" \
+            -scheme "${SCHEME}" \
+            -destination "${DESTINATION}" \
+            -derivedDataPath "${DERIVED_DATA_PATH}" \
+            2>&1 | tee xcodebuild.log
+
+      - name: Upload xcodebuild log
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: movena-ios-smoke-xcodebuild-log
+          path: xcodebuild.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload simulator products
+        if: success()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: movena-ios-smoke-products
+          path: DerivedData/Build/Products
+          retention-days: 4
