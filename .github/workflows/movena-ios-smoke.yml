@@ -44,6 +44,7 @@ env:
   SCHEME: NextcloudTalk
   DESTINATION: platform=iOS Simulator,name=iPhone 17,OS=26.5
   SIMULATOR_MODEL: iPhone 17
+  SIMULATOR_VERSION: "26.5"
   APP_BUNDLE_IDENTIFIER: com.nextcloud.Talk
   XCODE_VERSION: "26.5"
   DERIVED_DATA_PATH: DerivedData
@@ -99,6 +100,13 @@ jobs:
             -derivedDataPath "${DERIVED_DATA_PATH}" \
             2>&1 | tee xcodebuild.log
 
+      - name: Boot simulator
+        uses: futureware-tech/simulator-action@e89aa8f93d3aec35083ff49d2854d07f7186f7f5 # v5.0.0
+        with:
+          model: ${{ env.SIMULATOR_MODEL }}
+          os_version: ${{ env.SIMULATOR_VERSION }}
+          wait_for_boot: true
+
       - name: Launch app in simulator and capture screenshots
         run: |
           set -euo pipefail
@@ -128,8 +136,7 @@ jobs:
           fi
 
           echo "Installing app bundle: ${APP_PATH}"
-          xcrun simctl boot "${SIMULATOR_MODEL}" || true
-          xcrun simctl bootstatus booted -b
+          xcrun simctl list devices booted
           xcrun simctl install booted "${APP_PATH}"
 
           xcrun simctl screenshot booted simulator-screenshots/01-before-launch.png
